@@ -20,6 +20,9 @@ from app.schemas.user import(
     UserSortBy,
     SortOrder,
 )
+from collections.abc import Callable
+from app.core.rate_limit import rate_limit
+RateLimit = Annotated[Callable, Depends(rate_limit)]
 
 router = APIRouter(
     prefix="/auth",
@@ -36,14 +39,24 @@ CurrentUser = Annotated[
     Depends(get_current_user),
 ]
 
-@router.post("/register",response_model=UserResponse,status_code=status.HTTP_201_CREATED)
+@router.post("/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("auth:register", 3,60 * 60)),],
+)
 def register(data: UserRegister, db:DbSession) -> UserResponse:
     return auth_service.register_user(
         db=db,
         data=data,
     )
 
-@router.post("/login",response_model=TokenPairResponse)
+@router.post(
+    "/login",
+    response_model=TokenPairResponse,
+    dependencies=[
+        Depends(rate_limit("auth:login", 5, 60)),
+    ],
+)
 def login(
         data: UserLogin,
         db: DbSession,
@@ -87,7 +100,13 @@ def list_users(
         sort_order=sort_order,
     )
 
-@router.post("/refresh", response_model = TokenPairResponse)
+@router.post(
+    "/refresh",
+    response_model = TokenPairResponse,
+    dependencies=[
+        Depends(rate_limit("auth:refresh", 10, 60))
+    ],
+)
 def refresh_token(
         db: DbSession,
         data: RefreshTokenRequest,

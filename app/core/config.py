@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     upload_directory: str = "uploads"
     max_upload_size_bytes: int = 10 * 1024 * 1024 # 10 MB
 
+    rate_limit_enabled: bool = True
+    rate_limit_fail_open: bool = False
+
     model_config=SettingsConfigDict(
         env_file=".env",
         extra="ignore",
