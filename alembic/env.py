@@ -31,6 +31,7 @@ from app.db.models.comments import Comment
 from app.db.models.refresh_token import RefreshToken
 from app.db.models.audit_logs import AuditLog
 from app.db.models.task_attachment import TaskAttachment
+from app.db.models.notification import Notification
 
 target_metadata = Base.metadata
 

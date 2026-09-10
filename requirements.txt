@@ -11,3 +11,4 @@ pydantic
 redis
 celery[redis]>=5.6,<5.7
 python-multipart
+websockets
