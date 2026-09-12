@@ -10,7 +10,7 @@ from app.db.session import get_db
 
 async def get_websocket_user(
     websocket: WebSocket,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
 ) -> User | None:
     token = websocket.query_params.get("token")
 

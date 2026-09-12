@@ -10,6 +10,8 @@ from app.schemas.task import TaskBase, TaskResponse, CreateTaskRequest, UpdateTa
 from app.repositories import task_repository, project_repository, user_repository, team_member_repository
 from app.services import task_authorization
 
+from app.services import notification_service
+
 from app.schemas.task import(
     TaskSortBy,
     SortOrder,
@@ -421,6 +423,14 @@ def assign_task(db: Session, task_id: int, assignee_id: int, current_user: User)
             "assigned_to_user_id": assignee_id,
         }
     )
+
+    if assignee_id != current_user.id:
+        notification_service.create_task_assignment_notification(
+            db=db,
+            recipient_user_id=assignee_id,
+            actor=current_user,
+            task=task,
+        )
 
     delete_cache(ADMIN_TASK_LIST_CACHE_KEY)
     return TaskResponse.model_validate(task)

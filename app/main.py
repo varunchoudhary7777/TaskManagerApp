@@ -1,6 +1,16 @@
 from fastapi import FastAPI
 from app.api.routers import auth, team, project, task, comment, audit_log, task_attachment
 
+import asyncio
+from contextlib import asynccontextmanager
+
+from app.realtime.notification_listner import (
+    listen_for_notifications,
+)
+
+
+from app.api.routers import websocket
+
 from app.api.routers import health
 
 from fastapi.exceptions import RequestValidationError
@@ -16,7 +26,26 @@ from app.core.logging_config import configure_logging
 
 configure_logging()
 
-app=FastAPI(title="Task Manager API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    notification_listener_task = asyncio.create_task(
+        listen_for_notifications(),
+    )
+
+    yield
+
+    notification_listener_task.cancel()
+
+    try:
+        await notification_listener_task
+    except asyncio.CancelledError:
+        pass
+
+
+app=FastAPI(
+    title="Task Manager API",
+    lifespan=lifespan,
+)
 
 
 app.add_exception_handler(
@@ -44,5 +73,6 @@ app.include_router(comment.router)
 app.include_router(health.router)
 app.include_router(audit_log.router)
 app.include_router(task_attachment.router)
+app.include_router(websocket.router)
 Base.metadata.create_all(bind=engine)
 
