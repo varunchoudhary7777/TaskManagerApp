@@ -24,6 +24,8 @@ from app.core.exceptions import (
 
 from app.core.logging_config import configure_logging
 
+from app.api.routers import notification
+
 configure_logging()
 
 @asynccontextmanager
@@ -74,5 +76,6 @@ app.include_router(health.router)
 app.include_router(audit_log.router)
 app.include_router(task_attachment.router)
 app.include_router(websocket.router)
+app.include_router(notification.router)
 Base.metadata.create_all(bind=engine)
 
