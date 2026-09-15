@@ -77,5 +77,5 @@ app.include_router(audit_log.router)
 app.include_router(task_attachment.router)
 app.include_router(websocket.router)
 app.include_router(notification.router)
-Base.metadata.create_all(bind=engine)
+
 

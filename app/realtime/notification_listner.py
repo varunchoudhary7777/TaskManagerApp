@@ -26,7 +26,7 @@ async def listen_for_notifications() -> None:
                 decode_responses=True,
             )
 
-            pubsub = redis_client.pusbsub()
+            pubsub = redis_client.pubsub()
 
             await pubsub.subscribe(NOTIFICATION_CHANNEL)
 

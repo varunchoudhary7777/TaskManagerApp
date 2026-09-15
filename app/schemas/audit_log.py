@@ -10,7 +10,7 @@ class AuditLogResponse(BaseModel):
     action: AuditAction
     resource_type: str
     resource_id: int
-    detail: dict[str,Any] | None
+    details: dict[str,Any] | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

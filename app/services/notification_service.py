@@ -33,7 +33,7 @@ def publish_notification_event(notification: Notification) -> None:
         "resource_type": notification.resource_type,
         "resource_id": notification.resource_id,
         "details": notification.details,
-        "created_id": notification.created_at,
+        "created_at": notification.created_at.isoformat(),
     }
 
     try:

@@ -1,7 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.db.models.user import User
@@ -39,7 +39,7 @@ def list_my_notifications(
 @router.patch("/{notification_id}/read", response_model=NotificationResponse)
 def marky_my_notification_as_read(
         notification_id: int,
-        db: Session,
+        db: DbSession,
         current_user: CurrentUser,
 ) -> NotificationResponse:
     notification = notification_repository.get_notifications_for_user(

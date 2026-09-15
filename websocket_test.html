@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <body>
+    <h2>TaskManager WebSocket Test</h2>
+
+    <input id="token" placeholder="Paste access token here" size="90">
+    <button onclick="connect()">Connect</button>
+
+    <pre id="output"></pre>
+
+    <script>
+      let socket;
+
+      function connect() {
+        const token = document.getElementById("token").value;
+
+        socket = new WebSocket(
+          "ws://127.0.0.1:8000/ws/notifications?token=" +
+          encodeURIComponent(token)
+        );
+
+        socket.onopen = () => {
+          document.getElementById("output").textContent +=
+            "Connected\n";
+        };
+
+        socket.onmessage = (event) => {
+          document.getElementById("output").textContent +=
+            event.data + "\n";
+        };
+
+        socket.onclose = () => {
+          document.getElementById("output").textContent +=
+            "Disconnected\n";
+        };
+      }
+    </script>
+  </body>
+</html>

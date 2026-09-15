@@ -15,7 +15,7 @@ class NotificationResponse(BaseModel):
     resource_id: int
     details: dict[str, Any] | None
     read_at: datetime | None
-    created_at: datetime
 
-    model_Config = ConfigDict(from_attributes=True)
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
