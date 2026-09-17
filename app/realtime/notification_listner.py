@@ -31,7 +31,7 @@ async def listen_for_notifications() -> None:
             await pubsub.subscribe(NOTIFICATION_CHANNEL)
 
             logger.info(
-                "listening for Redis notifications: channme=%s",
+                "listening for Redis notifications: channel =%s",
                 NOTIFICATION_CHANNEL,
             )
 

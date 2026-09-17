@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from app.db.models.user import User
     from app.db.models.projects import Project
 
-from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, String, func, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, String, func, Text, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -30,6 +30,21 @@ class Task(Base):
             "project_id",
             "title",
             name="uq_project_task_title",
+        ),
+        Index(
+            "ix_tasks_assignee_status",
+            "assignee_id",
+            "status",
+        ),
+        Index(
+            "ix_tasks_project_status",
+            "project_id",
+            "status",
+        ),
+        Index(
+            "ix_tasks_due_date_status",
+            "due_date",
+            "status",
         ),
     )
 

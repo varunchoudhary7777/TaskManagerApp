@@ -13,6 +13,8 @@ from app.api.routers import websocket
 
 from app.api.routers import health
 
+from app.api.routers import dashboard
+
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -76,6 +78,7 @@ app.include_router(health.router)
 app.include_router(audit_log.router)
 app.include_router(task_attachment.router)
 app.include_router(websocket.router)
+app.include_router(dashboard.router)
 app.include_router(notification.router)
 
 

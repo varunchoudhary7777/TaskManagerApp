@@ -31,18 +31,19 @@ async def notification_websocket(
     )
 
     try:
-        # Keeps the connection alive and detects disconnects.
-        message = await websocket.receive_text()
+        while True:
+            # Keeps the connection alive and detects disconnects.
+            message = await websocket.receive_text()
 
-        # Optional application-level ping from frontend.
-        if message == "ping":
-            await websocket.send_json(
-                {"type": "pong"}
-            )
+            # Optional application-level ping from frontend.
+            if message == "ping":
+                await websocket.send_json(
+                    {"type": "pong"}
+                )
 
     except WebSocketDisconnect:
         notification_connection_manager.disconnect(
-            user_idf=current_user.id,
+            user_id=current_user.id,
             websocket=websocket,
         )
 
