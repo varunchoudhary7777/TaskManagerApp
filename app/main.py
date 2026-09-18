@@ -68,7 +68,6 @@ app.add_exception_handler(
 )
 
 
-from app.db.session import engine, Base
 app.include_router(auth.router)
 app.include_router(team.router)
 app.include_router(project.router)
