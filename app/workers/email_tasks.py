@@ -21,6 +21,8 @@ def send_task_assignment_email_task(
         recipient_name: str,
         task_id: int,
         task_title: str,
+
+        
 ) -> None:
     send_task_assignment_email(
         to_email=to_email,
