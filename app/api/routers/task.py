@@ -142,7 +142,7 @@ def lists_tasks(
         skip: int = Query(default=0, ge=0),
         status_filter: TaskStatus | None = Query(default=None, alias="status"),
         assignee_id: int | None = Query(default=None, gt=0),
-        search: str | None = Query(defualt=None, min_length=1, max_length=100),
+        search: str | None = Query(default=None, min_length=1, max_length=100),
         sort_by: TaskSortBy | None = Query(default=TaskSortBy.CREATED_AT),
         sort_order: SortOrder | None = Query(default=SortOrder.DESC),
 ) -> list[TaskResponse]:
