@@ -84,7 +84,7 @@ def list_users(
         current_user: CurrentUser,
         limit: int = Query(default=20, ge=1, le=100),
         skip: int = Query(default=0, ge=0),
-        role: UserRole | None = Query(defualt=None),
+        role: UserRole | None = Query(default=None),
         search: str | None = Query(default=None, min_length=1, max_length=100),
         sort_by: UserSortBy = Query(default=UserSortBy.CREATED_AT),
         sort_order: SortOrder = Query(default=SortOrder.DESC),
