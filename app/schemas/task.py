@@ -46,6 +46,9 @@ class TaskResponse(BaseModel):
     project_id: int
     assignee_id: int | None
     created_by_id: int
+    status: TaskStatus
+    priority: Priority
+    due_date: datetime
     created_at: datetime
     updated_at: datetime
 

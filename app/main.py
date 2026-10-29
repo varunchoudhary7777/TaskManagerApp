@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import auth, team, project, task, comment, audit_log, task_attachment
 
 import asyncio
@@ -25,6 +26,7 @@ from app.core.exceptions import (
 )
 
 from app.core.logging_config import configure_logging
+from app.core.config import settings
 
 from app.api.routers import notification
 
@@ -49,6 +51,20 @@ async def lifespan(app: FastAPI):
 app=FastAPI(
     title="Task Manager API",
     lifespan=lifespan,
+)
+
+# The React development server runs on a different origin from FastAPI.
+# CORS permits that browser-to-API communication while keeping the allowed
+# origins explicit and configurable through FRONTEND_ORIGINS.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

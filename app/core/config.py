@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_fail_open: bool = False
 
+    # Comma-separated browser origins allowed to call this API.
+    # Keep this specific in production; never use "*" with credentials.
+    frontend_origins: str = "http://127.0.0.1:5173,http://localhost:5173"
+
     model_config=SettingsConfigDict(
         env_file=".env",
         extra="ignore",

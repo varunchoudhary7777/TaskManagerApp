@@ -22,7 +22,7 @@ def send_task_assignment_email_task(
         task_id: int,
         task_title: str,
 
-        
+
 ) -> None:
     send_task_assignment_email(
         to_email=to_email,

@@ -1,10 +1,14 @@
 from datetime import UTC, datetime
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy.orm import Session
+from app.api.dependencies import get_current_user
 from app.db.models.user import User
 from app.repositories import dashboard_repository
 from app.schemas.dashboard import DashboardSummaryResponse
 
+CurrentUser = Annotated[User, Depends(get_current_user)]
 def get_dashboard_summary(
         db: Session,
         current_user: User,
