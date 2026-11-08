@@ -148,7 +148,7 @@ def delete_task_attachment(
 
     task = task_repository.get_task_by_id(
         db=db,
-        task_id=attachment_id,
+        task_id=attachment.task_id,
     )
 
     if task is None:

@@ -28,12 +28,14 @@ export function TasksPage() {
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editor, setEditor] = useState<TaskEditor | null>(null);
+  const role = String(user?.role ?? "").toUpperCase();
+  const canManageTasks = role === "ADMIN" || role === "MANAGER";
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [taskList, projectList] = await Promise.all([
-        request<Task[]>("/tasks/"),
+        request<Task[]>("/tasks/visible/"),
         request<Project[]>("/projects/", { query: { limit: 100, sort_by: "name", sort_order: "asc" } }),
       ]);
       setTasks(taskList); setProjects(projectList); setError(null);
@@ -79,17 +81,17 @@ export function TasksPage() {
   const filteredTasks = tasks.filter((task) => task.title.toLowerCase().includes(search.toLowerCase()) || task.description.toLowerCase().includes(search.toLowerCase()));
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">Execution</p><h1>My tasks</h1><p>Keep ownership, conversations, attachments, and delivery status in one focused view.</p></div><button className="button button--primary" onClick={() => setEditor({ mode: "create" })}><Plus size={18} />New task</button></section>
+    <section className="page-heading"><div><p className="eyebrow">Execution</p><h1>Team tasks</h1><p>See the work visible to your teams, with ownership, conversations, attachments, and delivery status in one place.</p></div>{canManageTasks && <button className="button button--primary" onClick={() => setEditor({ mode: "create" })}><Plus size={18} />New task</button>}</section>
     <section className="toolbar"><label className="search-field"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" /></label><span className="toolbar__spacer" /><span className="result-count">{filteredTasks.length} tasks</span></section>
-    {loading ? <LoadingState /> : error ? <ErrorState error={error} retry={() => void load()} /> : filteredTasks.length ? <section className="kanban-board">{columns.map((column) => { const items = filteredTasks.filter((task) => statusOf(task) === column.key); return <div className="kanban-column" key={column.key}><header><div><h2>{column.title}<span>{items.length}</span></h2><p>{column.helper}</p></div><button className="icon-button" onClick={() => setEditor({ mode: "create" })} aria-label={`Add ${column.title} task`}><Plus size={17} /></button></header><div className="kanban-column__body">{items.map((task) => <TaskCard key={task.id} task={task} projectName={projectName.get(task.project_id)} currentUserId={user?.id} onOpen={() => openTask(task)} onStatusChange={changeStatus} />)}{!items.length && <div className="kanban-empty">No tasks here</div>}</div></div>; })}</section> : <EmptyState title="No tasks found" detail="Create a task to turn a plan into a clear next action." action={<button className="button button--primary" onClick={() => setEditor({ mode: "create" })}><CirclePlus size={17} />Create task</button>} />}
-    {editor && <TaskEditorModal editor={editor} projects={projects} onClose={() => setEditor(null)} onSubmit={saveTask} />}
+    {loading ? <LoadingState /> : error ? <ErrorState error={error} retry={() => void load()} /> : filteredTasks.length ? <section className="kanban-board">{columns.map((column) => { const items = filteredTasks.filter((task) => statusOf(task) === column.key); return <div className="kanban-column" key={column.key}><header><div><h2>{column.title}<span>{items.length}</span></h2><p>{column.helper}</p></div>{canManageTasks && <button className="icon-button" onClick={() => setEditor({ mode: "create" })} aria-label={`Add ${column.title} task`}><Plus size={17} /></button>}</header><div className="kanban-column__body">{items.map((task) => <TaskCard key={task.id} task={task} projectName={projectName.get(task.project_id)} currentUserId={user?.id} canChangeStatus={canManageTasks || task.assignee_id === user?.id} onOpen={() => openTask(task)} onStatusChange={changeStatus} />)}{!items.length && <div className="kanban-empty">No tasks here</div>}</div></div>; })}</section> : <EmptyState title="No tasks found" detail={canManageTasks ? "Create a task to turn a plan into a clear next action." : "No tasks are visible in your teams yet."} action={canManageTasks ? <button className="button button--primary" onClick={() => setEditor({ mode: "create" })}><CirclePlus size={17} />Create task</button> : undefined} />}
+    {editor && canManageTasks && <TaskEditorModal editor={editor} projects={projects} onClose={() => setEditor(null)} onSubmit={saveTask} />}
     {selectedTask && <TaskDetailModal task={selectedTask} projects={projects} onClose={closeTask} onUpdate={(task) => { setTasks((items) => items.map((item) => item.id === task.id ? task : item)); setSelectedTask(task); }} onRefresh={load} />}
   </>;
 }
 
-function TaskCard({ task, projectName, currentUserId, onOpen, onStatusChange }: { task: Task; projectName?: string; currentUserId?: number; onOpen: () => void; onStatusChange: (task: Task, status: TaskStatus) => void }) {
+function TaskCard({ task, projectName, currentUserId, canChangeStatus, onOpen, onStatusChange }: { task: Task; projectName?: string; currentUserId?: number; canChangeStatus: boolean; onOpen: () => void; onStatusChange: (task: Task, status: TaskStatus) => void }) {
   const [menu, setMenu] = useState(false);
-  return <article className="task-card" onClick={onOpen}><div className="task-card__header"><span className={`priority-dot priority-dot--${(task.priority ?? "low").toLowerCase()}`} /><div className="action-menu"><button className="icon-button" onClick={(event) => { event.stopPropagation(); setMenu((open) => !open); }} aria-label="Task actions"><MoreHorizontal size={18} /></button>{menu && <div className="action-menu__panel" onClick={(event) => event.stopPropagation()}>{(["TODO", "IN_PROGRESS", "COMPLETED"] as const).map((status) => <button key={status} onClick={() => { onStatusChange(task, status); setMenu(false); }}><Check size={15} />Move to {titleCase(status)}</button>)}</div>}</div></div><h3>{task.title}</h3><p>{task.description}</p><footer><span className="task-card__project"><FolderKanban size={13} />{projectName ?? `Project #${task.project_id}`}</span><span className="task-card__meta"><CalendarDays size={13} />{task.due_date ? formatDate(task.due_date) : "No date"}</span></footer><div className="task-card__assignee">{task.assignee_id === currentUserId ? <span className="assignee-avatar">You</span> : task.assignee_id ? <span className="assignee-avatar">#{task.assignee_id}</span> : <span className="unassigned">Unassigned</span>}</div></article>;
+  return <article className="task-card" onClick={onOpen}><div className="task-card__header"><span className={`priority-dot priority-dot--${(task.priority ?? "low").toLowerCase()}`} />{canChangeStatus && <div className="action-menu"><button className="icon-button" onClick={(event) => { event.stopPropagation(); setMenu((open) => !open); }} aria-label="Task status actions"><MoreHorizontal size={18} /></button>{menu && <div className="action-menu__panel" onClick={(event) => event.stopPropagation()}>{(["TODO", "IN_PROGRESS", "COMPLETED"] as const).map((status) => <button key={status} onClick={() => { onStatusChange(task, status); setMenu(false); }}><Check size={15} />Move to {titleCase(status)}</button>)}</div>}</div>}</div><h3>{task.title}</h3><p>{task.description}</p><footer><span className="task-card__project"><FolderKanban size={13} />{projectName ?? `Project #${task.project_id}`}</span><span className="task-card__meta"><CalendarDays size={13} />{task.due_date ? formatDate(task.due_date) : "No date"}</span></footer><div className="task-card__assignee">{task.assignee_id === currentUserId ? <span className="assignee-avatar">You</span> : task.assignee_id ? <span className="assignee-avatar">#{task.assignee_id}</span> : <span className="unassigned">Unassigned</span>}</div></article>;
 }
 
 function TaskEditorModal({ editor, projects, onClose, onSubmit }: { editor: TaskEditor; projects: Project[]; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
@@ -109,6 +111,10 @@ function TaskDetailModal({ task, projects, onClose, onUpdate, onRefresh }: { tas
   const [working, setWorking] = useState(false);
   const project = projects.find((item) => item.id === task.project_id);
   const status = task.status?.toUpperCase() ?? "TODO";
+  const role = String(user?.role ?? "").toUpperCase();
+  const canManageTask = role === "ADMIN" || role === "MANAGER";
+  const canChangeStatus = canManageTask || task.assignee_id === user?.id;
+  const canComment = canManageTask || task.assignee_id === user?.id;
   const loadDetail = useCallback(async () => { setLoading(true); try { const [commentList, attachmentList] = await Promise.all([request<Comment[]>(`/comments/task/${task.id}`), request<Attachment[]>(`/attachments/task/${task.id}`)]); setComments(commentList); setAttachments(attachmentList); } catch (caught) { notifyError(caught instanceof Error ? caught.message : "Unable to load task details."); } finally { setLoading(false); } }, [notifyError, task.id]);
   useEffect(() => { void loadDetail(); }, [loadDetail]);
 

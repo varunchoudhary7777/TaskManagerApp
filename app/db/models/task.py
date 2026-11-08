@@ -121,3 +121,8 @@ class Task(Base):
     project: Mapped["Project"] = relationship("Project", back_populates="tasks")
     creator: Mapped["User"] =relationship("User", foreign_keys=[created_by_id], back_populates="tasks_created")
 
+    @property
+    def assignee_name(self) -> str | None:
+        """Return a presentation-safe assignee name without a schema change."""
+        return self.assignee.full_name if self.assignee is not None else None
+

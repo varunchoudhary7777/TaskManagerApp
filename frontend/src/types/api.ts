@@ -84,6 +84,9 @@ export interface Notification {
 
 export interface DashboardSummary {
   scope: string;
+  scope_label: string;
+  scope_description: string;
+  visible_team_count: number;
   active_projects: number;
   total_tasks: number;
   todo_tasks: number;
@@ -92,6 +95,8 @@ export interface DashboardSummary {
   overdue_tasks: number;
   unassigned_tasks: number;
   generated_at: string;
+  recent_projects: Project[];
+  upcoming_tasks: Task[];
 }
 
 export interface AuditLog {

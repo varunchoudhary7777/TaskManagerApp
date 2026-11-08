@@ -25,6 +25,7 @@ class CommentResponse(BaseModel):
     content: str
     task_id: int
     author_id: int
+    author_name: str | None = None
     created_at: datetime
     updated_at: datetime
 

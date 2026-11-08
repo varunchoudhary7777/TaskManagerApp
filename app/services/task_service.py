@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -5,7 +7,14 @@ from app.db.models.user import User, UserRole
 from app.db.models.task import Task, TaskStatus, Priority
 from app.db.models.projects import Project, Status
 
-from app.schemas.task import TaskBase, TaskResponse, CreateTaskRequest, UpdateTaskRequest, UpdateStatus
+from app.schemas.task import (
+    TaskBase,
+    TaskPageResponse,
+    TaskResponse,
+    CreateTaskRequest,
+    UpdateTaskRequest,
+    UpdateStatus,
+)
 
 from app.repositories import task_repository, project_repository, user_repository, team_member_repository
 from app.services import task_authorization
@@ -57,13 +66,22 @@ def create_task(db: Session, data: CreateTaskRequest, current_user: User) -> Tas
                 detail="assignee is not part of the team!",
             )
 
-    task = Task(
-        title=data.title,
-        description=data.description,
-        project_id=data.project_id,
-        assignee_id=data.assignee_id,
-        created_by_id=current_user.id,
-    )
+    task_data = {
+        "title": data.title,
+        "description": data.description,
+        "project_id": data.project_id,
+        "assignee_id": data.assignee_id,
+        "created_by_id": current_user.id,
+    }
+
+    # Omitting optional values lets SQLAlchemy apply the model defaults when
+    # the client has not chosen a priority or due date.
+    if data.priority is not None:
+        task_data["priority"] = data.priority
+    if data.due_date is not None:
+        task_data["due_date"] = data.due_date
+
+    task = Task(**task_data)
     task=task_repository.create_task(db, task)
 
     audit_log_service.record_audit_log(
@@ -545,6 +563,10 @@ def lists_tasks(
         skip: int,
         status_filter: TaskStatus | None,
         assignee_id: int | None,
+        project_id: int | None,
+        priority: Priority | None,
+        due_before: datetime | None,
+        due_after: datetime | None,
         search: str | None,
         sort_by: TaskSortBy,
         sort_order: SortOrder,
@@ -556,6 +578,10 @@ def lists_tasks(
         skip=skip,
         status_filter=status_filter,
         assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
         search=search,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -565,4 +591,55 @@ def lists_tasks(
         TaskResponse.model_validate(task)
         for task in tasks
     ]
+
+
+def list_tasks_page(
+        db: Session,
+        current_user: User,
+        limit: int,
+        skip: int,
+        status_filter: TaskStatus | None,
+        assignee_id: int | None,
+        project_id: int | None,
+        priority: Priority | None,
+        due_before: datetime | None,
+        due_after: datetime | None,
+        search: str | None,
+        sort_by: TaskSortBy,
+        sort_order: SortOrder,
+) -> TaskPageResponse:
+    """Return a visible-task page and the count for the same scoped query."""
+    tasks = task_repository.list_tasks_for_user(
+        db=db,
+        current_user=current_user,
+        limit=limit,
+        skip=skip,
+        status_filter=status_filter,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+    total = task_repository.count_tasks_for_user(
+        db=db,
+        current_user=current_user,
+        status_filter=status_filter,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
+        search=search,
+    )
+
+    return TaskPageResponse(
+        items=[TaskResponse.model_validate(task) for task in tasks],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 

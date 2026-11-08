@@ -198,7 +198,11 @@ def get_task_comments(db: Session, task_id: int, current_user: User) -> list[Com
             for comment in cached_comments
         ]
 
-    comments_response = comment_repository.get_all_comments_by_task(db, task_id)
+    comments = comment_repository.get_all_comments_by_task(db, task_id)
+    comments_response = [
+        CommentResponse.model_validate(comment)
+        for comment in comments
+    ]
     set_cache_json(
         key=cache_key,
         value=[

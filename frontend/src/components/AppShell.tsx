@@ -44,6 +44,7 @@ export function AppShell() {
   }, [loadNotifications, success]);
 
   const unreadCount = notifications.filter((item) => !item.read_at).length;
+  const canCreateProjects = user?.role.toLowerCase() !== "developer";
   const markRead = async (notification: Notification) => {
     if (notification.read_at) return;
     try {
@@ -64,7 +65,7 @@ export function AppShell() {
     <div className="app-shell">
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`}>
         <div className="brand"><span className="brand__mark">T</span><span>Taskflow</span><button className="icon-button sidebar__close" onClick={closeMobile}><X size={20} /></button></div>
-        <button className="create-button" onClick={() => { navigate("/projects?new=1"); closeMobile(); }}><Plus size={18} /> New project</button>
+        {canCreateProjects && <button className="create-button" onClick={() => { navigate("/projects?new=1"); closeMobile(); }}><Plus size={18} /> New project</button>}
         <nav aria-label="Main navigation">
           <p className="nav-label">Workspace</p>
           {primaryItems.map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={closeMobile} className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}><Icon size={18} />{label}</NavLink>)}

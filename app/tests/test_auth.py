@@ -233,3 +233,23 @@ def test_expired_refresh_token_returns_401(
     )
 
     assert response.status_code == 401
+
+
+def test_admin_can_list_users(
+    admin_client: TestClient,
+    admin_user,
+    developer_user,
+):
+    response = admin_client.get("/auth/users/?search=developer")
+
+    assert response.status_code == 200
+    users = response.json()
+    assert isinstance(users, list)
+    assert [user["id"] for user in users] == [developer_user.id]
+    assert users[0]["email"] == developer_user.email
+
+
+def test_non_admin_cannot_list_users(user_client: TestClient):
+    response = user_client.get("/auth/users/")
+
+    assert response.status_code == 403

@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta, UTC
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, String, func, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+
+if TYPE_CHECKING:
+    from app.db.models.user import User
 
 
 class Comment(Base):
@@ -44,3 +48,13 @@ class Comment(Base):
         nullable=False,
         index=True,
     )
+
+    author: Mapped["User"] = relationship(
+        "User",
+        foreign_keys=[author_id],
+    )
+
+    @property
+    def author_name(self) -> str | None:
+        """Return the author's name for API consumers without duplicating it."""
+        return self.author.full_name if self.author is not None else None

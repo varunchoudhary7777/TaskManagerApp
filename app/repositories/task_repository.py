@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from datetime import UTC
 from operator import or_
 
-from sqlalchemy import select, asc, desc
+from sqlalchemy import func, select, asc, desc
 from sqlalchemy.orm import Session
 
 from app.db.models.projects import Project
@@ -248,11 +248,8 @@ def search_tasks(db: Session, keyword: str, project_id: int) -> list[Task]:
     statement=select(Task).where(Task.project_id == project_id, or_(Task.title.ilike(f"%{keyword}%"), Task.description.ilike(f"%{keyword}%"),))
     return list(db.scalars(statement).all())
 
-def list_tasks_for_user(
-        db: Session,
+def _visible_tasks_statement(
         current_user: User,
-        limit: int,
-        skip: int,
         status_filter: TaskStatus | None,
         assignee_id: int | None,
         project_id: int | None,
@@ -260,9 +257,8 @@ def list_tasks_for_user(
         due_before: datetime | None,
         due_after: datetime | None,
         search: str | None,
-        sort_by: TaskSortBy,
-        sort_order: SortOrder,
-) -> list[Task]:
+):
+    """Build the role-scoped query shared by task listing and counting."""
     statement = select(Task)
 
     #Authorization: decide which projects this user is allowed to see.
@@ -339,8 +335,37 @@ def list_tasks_for_user(
             Task.title.ilike(f"%{search}%")
         )
 
-    #only allow known, safe sort columns.
-    sortable_columns={
+    return statement
+
+
+def list_tasks_for_user(
+        db: Session,
+        current_user: User,
+        limit: int,
+        skip: int,
+        status_filter: TaskStatus | None,
+        assignee_id: int | None,
+        project_id: int | None,
+        priority: Priority | None,
+        due_before: datetime | None,
+        due_after: datetime | None,
+        search: str | None,
+        sort_by: TaskSortBy,
+        sort_order: SortOrder,
+) -> list[Task]:
+    statement = _visible_tasks_statement(
+        current_user=current_user,
+        status_filter=status_filter,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
+        search=search,
+    )
+
+    # Only allow known, safe sort columns.
+    sortable_columns = {
         TaskSortBy.CREATED_AT : Task.created_at,
         TaskSortBy.UPDATED_AT : Task.updated_at,
         TaskSortBy.DUE_DATE : Task.due_date,
@@ -351,12 +376,37 @@ def list_tasks_for_user(
     sort_column = sortable_columns[sort_by]
 
     if sort_order == SortOrder.ASC:
-        statement = statement.order_by(asc(sort_column))
-
+        statement = statement.order_by(asc(sort_column), asc(Task.id))
     else:
-        statement = statement.order_by(desc(sort_column))
+        statement = statement.order_by(desc(sort_column), desc(Task.id))
 
     #pagination should happen last.
     statement = statement.offset(skip).limit(limit)
 
     return list(db.scalars(statement).all())
+
+
+def count_tasks_for_user(
+        db: Session,
+        current_user: User,
+        status_filter: TaskStatus | None,
+        assignee_id: int | None,
+        project_id: int | None,
+        priority: Priority | None,
+        due_before: datetime | None,
+        due_after: datetime | None,
+        search: str | None,
+) -> int:
+    """Count tasks using the exact same visibility and filter rules as a page."""
+    statement = _visible_tasks_statement(
+        current_user=current_user,
+        status_filter=status_filter,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
+        search=search,
+    )
+    count_statement = select(func.count()).select_from(statement.subquery())
+    return int(db.scalar(count_statement) or 0)

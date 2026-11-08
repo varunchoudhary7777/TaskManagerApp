@@ -67,12 +67,31 @@ def remove_member(db: Session, member_id: int, team_id: int, current_user: User)
     team_member_repository.remove_member(db, team_id, member_id)
 
 def get_team_members(db: Session, team_id:int, current_user: User) -> list[UserResponse]:
-    require_admin(current_user)
     existing_team=team_repository.get_team_by_id(db, team_id)
     if existing_team is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team doesn't exist!"
+        )
+
+    # Assignment is available to an administrator or the manager of this
+    # exact team.  A manager from another team must not be able to enumerate
+    # members here.
+    if current_user.role == UserRole.ADMIN:
+        pass
+    elif (
+            current_user.role == UserRole.MANAGER
+            and team_member_repository.is_member_managed(
+                db,
+                team_id,
+                current_user.id,
+            )
+    ):
+        pass
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only an administrator or this team's manager can view members.",
         )
 
     members: list[User]=team_member_repository.get_team_members(db, team_id)

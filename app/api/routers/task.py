@@ -1,4 +1,5 @@
 from typing import Annotated
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from sqlalchemy.orm import Session
@@ -11,7 +12,14 @@ from app.db.models.team_member import TeamMember
 
 from app.db.session import get_db
 from app.repositories import task_repository
-from app.schemas.task import CreateTaskRequest, TaskResponse, TaskStatus, UpdateTaskRequest, UpdateStatus
+from app.schemas.task import (
+    CreateTaskRequest,
+    TaskPageResponse,
+    TaskResponse,
+    TaskStatus,
+    UpdateTaskRequest,
+    UpdateStatus,
+)
 from app.schemas.project import CreateProjectRequest, ProjectResponse
 from app.services import task_service
 
@@ -129,32 +137,80 @@ def list_tasks_by_status(db: DbSession, task_status: TaskStatus, current_user: C
 def list_tasks_by_priority(db: DbSession, task_priority: Priority, current_user: CurrentUser) -> list[TaskResponse]:
     return task_service.get_tasks_by_priority(db, task_priority, current_user)
 
-@router.get("/{task_id}", response_model=TaskResponse, status_code=status.HTTP_200_OK)
-def get_task(db: DbSession, task_id: int, current_user: CurrentUser) -> TaskResponse:
-    return task_service.get_task_by_id(db, task_id, current_user)
 
-
-@router.get("/tasks/", response_model = list[TaskResponse], status_code = status.HTTP_200_OK)
-def lists_tasks(
+@router.get("/visible/", response_model=list[TaskResponse], status_code=status.HTTP_200_OK)
+def list_visible_tasks(
         db: DbSession,
         current_user: CurrentUser,
-        limit: int = Query(default=1, ge=1, le=100),
+        limit: int = Query(default=50, ge=1, le=100),
         skip: int = Query(default=0, ge=0),
         status_filter: TaskStatus | None = Query(default=None, alias="status"),
         assignee_id: int | None = Query(default=None, gt=0),
+        project_id: int | None = Query(default=None, gt=0),
+        priority: Priority | None = Query(default=None),
+        due_before: datetime | None = Query(default=None),
+        due_after: datetime | None = Query(default=None),
         search: str | None = Query(default=None, min_length=1, max_length=100),
-        sort_by: TaskSortBy | None = Query(default=TaskSortBy.CREATED_AT),
-        sort_order: SortOrder | None = Query(default=SortOrder.DESC),
+        sort_by: TaskSortBy = Query(default=TaskSortBy.CREATED_AT),
+        sort_order: SortOrder = Query(default=SortOrder.DESC),
 ) -> list[TaskResponse]:
-    return task_repository.lists_tasks(
+    """List only tasks that are visible to the signed-in user's role."""
+    return task_service.lists_tasks(
         db=db,
         current_user=current_user,
         limit=limit,
         skip=skip,
         status_filter=status_filter,
         assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
         search=search,
         sort_by=sort_by,
         sort_order=sort_order,
     )
+
+
+@router.get(
+    "/visible/page/",
+    response_model=TaskPageResponse,
+    status_code=status.HTTP_200_OK,
+)
+def list_visible_tasks_page(
+        db: DbSession,
+        current_user: CurrentUser,
+        limit: int = Query(default=20, ge=1, le=100),
+        skip: int = Query(default=0, ge=0),
+        status_filter: TaskStatus | None = Query(default=None, alias="status"),
+        assignee_id: int | None = Query(default=None, gt=0),
+        project_id: int | None = Query(default=None, gt=0),
+        priority: Priority | None = Query(default=None),
+        due_before: datetime | None = Query(default=None),
+        due_after: datetime | None = Query(default=None),
+        search: str | None = Query(default=None, min_length=1, max_length=100),
+        sort_by: TaskSortBy = Query(default=TaskSortBy.CREATED_AT),
+        sort_order: SortOrder = Query(default=SortOrder.DESC),
+) -> TaskPageResponse:
+    """Return a paginated task board without exposing another team's tasks."""
+    return task_service.list_tasks_page(
+        db=db,
+        current_user=current_user,
+        limit=limit,
+        skip=skip,
+        status_filter=status_filter,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+
+
+@router.get("/{task_id}", response_model=TaskResponse, status_code=status.HTTP_200_OK)
+def get_task(db: DbSession, task_id: int, current_user: CurrentUser) -> TaskResponse:
+    return task_service.get_task_by_id(db, task_id, current_user)
 

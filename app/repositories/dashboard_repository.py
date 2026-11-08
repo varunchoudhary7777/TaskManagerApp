@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import case, func, select
+from sqlalchemy import asc, case, desc, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models.projects import Project, Status
 from app.db.models.task import Task, TaskStatus
+from app.db.models.team import Team
 from app.db.models.team_member import TeamMember, TeamRole
 from app.db.models.user import User, UserRole
 
@@ -36,9 +37,50 @@ def _apply_task_visibility(
             )
         )
 
-    # Developers see only tasks assigned to them.
-    return statement.where(
-        Task.assignee_id == current_user.id
+    # Developers can already view tasks in projects that belong to their teams.
+    # The dashboard must use the same visibility rule; otherwise it would show
+    # a different (and confusing) subset of data than the rest of the product.
+    return (
+        statement
+        .join(
+            Project,
+            Task.project_id == Project.id,
+        )
+        .join(
+            TeamMember,
+            TeamMember.team_id == Project.team_id,
+        )
+        .where(
+            TeamMember.user_id == current_user.id,
+            TeamMember.role == TeamRole.DEVELOPER,
+        )
+    )
+
+
+def _apply_project_visibility(
+    statement,
+    current_user: User,
+):
+    """Limit a Project query to the teams the current user can access."""
+    if current_user.role == UserRole.ADMIN:
+        return statement
+
+    membership_role = (
+        TeamRole.MANAGER
+        if current_user.role == UserRole.MANAGER
+        else TeamRole.DEVELOPER
+    )
+
+    return (
+        statement
+        .join(
+            TeamMember,
+            TeamMember.team_id == Project.team_id,
+        )
+        .where(
+            TeamMember.user_id == current_user.id,
+            TeamMember.role == membership_role,
+        )
     )
 
 
@@ -141,32 +183,66 @@ def get_active_project_count(
         .where(Project.status == Status.ACTIVE)
     )
 
-    if current_user.role == UserRole.MANAGER:
-        statement = (
-            statement
-            .join(
-                TeamMember,
-                TeamMember.team_id == Project.team_id,
-            )
-            .where(
-                TeamMember.user_id == current_user.id,
-                TeamMember.role == TeamRole.MANAGER,
-            )
-        )
-
-    elif current_user.role == UserRole.DEVELOPER:
-        statement = (
-            statement
-            .join(
-                TeamMember,
-                TeamMember.team_id == Project.team_id,
-            )
-            .where(
-                TeamMember.user_id == current_user.id,
-                TeamMember.role == TeamRole.DEVELOPER,
-            )
-        )
+    statement = _apply_project_visibility(
+        statement=statement,
+        current_user=current_user,
+    )
 
     result = db.scalar(statement)
 
     return int(result or 0)
+
+
+def get_visible_team_count(
+    db: Session,
+    current_user: User,
+) -> int:
+    """Return the number of teams represented by this dashboard's data."""
+    if current_user.role == UserRole.ADMIN:
+        statement = select(func.count(Team.id))
+    else:
+        membership_role = (
+            TeamRole.MANAGER
+            if current_user.role == UserRole.MANAGER
+            else TeamRole.DEVELOPER
+        )
+        statement = (
+            select(func.count(func.distinct(TeamMember.team_id)))
+            .where(
+                TeamMember.user_id == current_user.id,
+                TeamMember.role == membership_role,
+            )
+        )
+
+    result = db.scalar(statement)
+    return int(result or 0)
+
+
+def get_recent_projects(
+    db: Session,
+    current_user: User,
+    limit: int = 5,
+) -> list[Project]:
+    """Return the most recently updated projects in the user's dashboard scope."""
+    statement = select(Project)
+    statement = _apply_project_visibility(
+        statement=statement,
+        current_user=current_user,
+    )
+    statement = statement.order_by(desc(Project.updated_at)).limit(limit)
+    return list(db.scalars(statement).all())
+
+
+def get_upcoming_tasks(
+    db: Session,
+    current_user: User,
+    limit: int = 5,
+) -> list[Task]:
+    """Return incomplete tasks ordered by due date in the user's dashboard scope."""
+    statement = select(Task).where(Task.status != TaskStatus.COMPLETED)
+    statement = _apply_task_visibility(
+        statement=statement,
+        current_user=current_user,
+    )
+    statement = statement.order_by(asc(Task.due_date)).limit(limit)
+    return list(db.scalars(statement).all())

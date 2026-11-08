@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.repositories import user_repository
 from app.schemas.auth import TokenResponse, UserLogin
 from app.schemas.user import UserRegister, UserResponse, UserChangeRole
 from app.services import auth_service
@@ -78,7 +77,7 @@ def change_user_role(
 ):
     return auth_service.change_user_role(db, user_id, data, current_user)
 
-@router.get("/users/", response_model = UserResponse, status_code = status.HTTP_200_OK)
+@router.get("/users/", response_model=list[UserResponse], status_code=status.HTTP_200_OK)
 def list_users(
         db: DbSession,
         current_user: CurrentUser,
@@ -89,13 +88,20 @@ def list_users(
         sort_by: UserSortBy = Query(default=UserSortBy.CREATED_AT),
         sort_order: SortOrder = Query(default=SortOrder.DESC),
 ) -> list[UserResponse]:
-    return user_repository.list_users(
+    """Return the user directory for administrators only.
+
+    The service owns both the authorization check and cached query. A single
+    search term deliberately matches both a person's name and email address.
+    """
+    return auth_service.list_users(
         db=db,
         current_user=current_user,
         limit=limit,
         skip=skip,
         role=role,
-        search=search,
+        search_name=search,
+        search_email=search,
+        created_at=None,
         sort_by=sort_by,
         sort_order=sort_order,
     )
